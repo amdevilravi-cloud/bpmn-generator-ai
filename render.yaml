@@ -2,9 +2,13 @@ services:
   - type: web
     name: bpmn-generator-backend
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app.main:app --workers=2 --bind=0.0.0.0:8000"
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHONUNBUFFERED
-        value: "1"
-    autoDeploy: true
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      - key: DEBUG
+        value: "False"
+      - key: PORT
+        value: 8000

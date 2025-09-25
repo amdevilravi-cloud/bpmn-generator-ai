@@ -3,20 +3,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import requests
-from app.services import generate_bpmn, validate_bpmn, explain_process
+from services import generate_bpmn, validate_bpmn, explain_process
 
+# Use environment variable with fallback
+api_url = os.environ.get("LMSTUDIO_API_URL", "http://localhost:1234/v1/chat/completions")
 app = FastAPI(title="BPMN Generator API")
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-api_url = "http://localhost:1234/v1/chat/completions"
+
 
 class ProcessDescription(BaseModel):
     text: str
