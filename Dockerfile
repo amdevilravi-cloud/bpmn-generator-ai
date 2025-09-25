@@ -16,4 +16,4 @@ COPY app/ ./app/
 
 EXPOSE 8000
 
-CMD ["gunicorn", "main:app", "--workers=2", "--bind=0.0.0.0:8000"]s
+CMD ["uvicorn", "main:app", "--workers=2", "--bind=0.0.0.0:8000"]
