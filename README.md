@@ -1,6 +1,6 @@
 # BPMN Generator AI
 
-A FastAPI-based backend service that generates BPMN diagrams from business process descriptions using a local LLM API (e.g., LM Studio). The service parses natural language, extracts process elements, and returns BPMN XML, validation, and explanation.
+A FastAPI backend that generates BPMN diagrams from business process descriptions using Amazon Bedrock (Claude 3 Haiku) or a fallback extraction. The service parses natural language, extracts process elements, and returns BPMN XML, validation, and explanation.
 
 ---
 
@@ -9,32 +9,35 @@ A FastAPI-based backend service that generates BPMN diagrams from business proce
 ```
 bpmn-generator-ai/
 │
-├── app/                  # (empty, legacy folder)
-│
-├── main.py               # FastAPI application entrypoint
-├── models.py             # (optional) Data models (not used in main flow)
+├── main.py               # FastAPI application entrypoint (Bedrock/Claude logic)
 ├── services.py           # BPMN generation, validation, and explanation logic
+├── bedrock_service.py    # Amazon Bedrock Claude 3 Haiku integration
+├── models.py             # (optional) Data models
 ├── requirements.txt      # Python dependencies
 ├── Dockerfile            # Container build instructions
 ├── render.yaml           # Render.com deployment config
-├── .env                  # Environment variables
+├── .env                  # Environment variables (AWS keys, etc.)
+├── .dockerignore         # Docker ignore rules
 ├── README.md             # Project documentation
 ├── __init__.py           # (empty, for package structure)
 ├── myenv/                # Python virtual environment (local only)
-└── app/
-    └── __pycache__/      # Python bytecode cache
+├── app/
+│   └── __pycache__/      # Python bytecode cache
+└── test_bedrock_local.py # Script to test Bedrock integration
 ```
 
 ---
 
 ## Main Components
 
-- **main.py**: FastAPI app, exposes `/generate-bpmn` endpoint. Handles CORS, request parsing, and calls LLM API.
+- **main.py**: FastAPI app, exposes `/generate-bpmn` endpoint. Handles CORS, request parsing, and calls Bedrock Claude 3 Haiku or fallback.
 - **services.py**: Contains `generate_bpmn`, `validate_bpmn`, and `explain_process` functions. Converts structured process info to BPMN XML.
-- **requirements.txt**: Includes FastAPI, Uvicorn, Gunicorn, requests, bpmn-python, and other dependencies.
+- **bedrock_service.py**: Handles AWS Bedrock client and Claude 3 Haiku invocation.
+- **test_bedrock_local.py**: Standalone script to test Bedrock connectivity and Claude invocation.
+- **requirements.txt**: Includes FastAPI, Uvicorn, Gunicorn, boto3, requests, bpmn-python, and other dependencies.
 - **Dockerfile**: Production-ready, uses Gunicorn for serving FastAPI.
 - **render.yaml**: Configuration for deploying to Render.com.
-- **.env**: Stores environment variables (e.g., API keys, LLM endpoint).
+- **.env**: Stores environment variables (AWS credentials, etc.).
 
 ---
 
@@ -45,13 +48,16 @@ sequenceDiagram
     participant User
     participant Frontend
     participant FastAPI
-    participant LLM_API
+    participant Bedrock
+    participant Claude
     participant Services
 
     User->>Frontend: Enter process description
     Frontend->>FastAPI: POST /generate-bpmn {text}
-    FastAPI->>LLM_API: POST /v1/chat/completions (prompt)
-    LLM_API-->>FastAPI: JSON with process elements
+    FastAPI->>Bedrock: invoke_claude_haiku(prompt)
+    Bedrock->>Claude: Claude 3 Haiku processes prompt
+    Claude-->>Bedrock: JSON with process elements
+    Bedrock-->>FastAPI: Claude response
     FastAPI->>Services: generate_bpmn(process_info)
     Services-->>FastAPI: BPMN XML
     FastAPI->>Services: validate_bpmn(bpmn_xml)
@@ -67,11 +73,12 @@ sequenceDiagram
 ## How It Works
 
 1. **User** submits a business process description.
-2. **FastAPI** receives the request and sends a prompt to the local LLM API (e.g., LM Studio).
-3. **LLM API** returns structured JSON with process elements (tasks, decisions, events, sequence).
+2. **FastAPI** receives the request and sends a prompt to Amazon Bedrock (Claude 3 Haiku).
+3. **Claude** returns structured JSON with process elements (tasks, decisions, events, sequence).
 4. **FastAPI** calls `generate_bpmn` in `services.py` to create BPMN XML.
 5. **FastAPI** validates the BPMN XML and generates a human-readable explanation.
 6. **Response** includes BPMN XML, validation status, explanation, and parsed process info.
+7. If Bedrock/Claude fails, a fallback extraction is used.
 
 ---
 
@@ -84,8 +91,9 @@ sequenceDiagram
 
 ## Environment Variables
 
-- `LMSTUDIO_API_URL`: URL for the local LLM API (default: `http://localhost:1234/v1/chat/completions`)
-- `OPENAI_API_KEY`: (legacy, not used in current flow)
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: Required for Bedrock/Claude integration.
+- `LMSTUDIO_API_URL`: (legacy, not used in Bedrock flow)
+- `OPENAI_API_KEY`: (legacy, not used in Bedrock flow)
 
 ---
 
